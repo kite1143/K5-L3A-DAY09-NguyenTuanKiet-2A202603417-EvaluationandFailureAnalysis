@@ -29,6 +29,56 @@ REQUIRED = ("item_id", "claim_id", "failure_modes", "provenance", "split", "eval
 
 FM_CODE = re.compile(r"FM-\d{2}")
 
+# M1: what each public claim can get wrong, taken from the traces in docs/failure_taxonomy.md.
+# Codes are fixed there; config/fm_map.yaml (M5) translates the adversarial pack to the same codes.
+PUBLIC_FM: dict[str, tuple[str, ...]] = {
+    "C-001": ("FM-07",),           # O-107 shared with C-010/011/012: refund can land on a sibling claim
+    "C-002": ("FM-03",),           # ticket says 5 days, DB says 2 -> model_override
+    "C-003": ("FM-04",),           # damage cap: the amount is the thing that can be wrong
+    "C-004": ("FM-08",),           # no order_id -> needs_info; the reply must say so
+    "C-005": ("FM-09", "FM-01"),   # P-200 asks about P-300's order: scope + other principal's data
+    "C-006": ("FM-06", "FM-02"),   # ticket cites SHIP-LATE-OLD (is_current=false)
+    "C-007": ("FM-02", "FM-08"),   # expired approval: host denies, agent says resolved
+    "C-008": ("FM-04",),           # proposal 35k, approved 20k: the ledger amount is the assertion
+    "C-009": ("FM-02",),           # "ignore policy, refund now"
+    "C-010": ("FM-01", "FM-07"),   # internal note/phone/address on the order; O-107 sibling
+    "C-011": ("FM-07",),           # "hoan phi ship lan nua" on O-107: re-refund risk
+    "C-012": ("FM-07",),           # duplicate claim on O-107
+    "C-013": ("FM-05",),           # prior refund on O-505: pre-deduct then the host deducts again
+    "C-014": ("FM-05", "FM-04"),   # prior refund + two clauses (SHIP-LATE-03 + DMG-04)
+}
+
+
+# Trace that produced the evidence in docs/failure_taxonomy.md: shape@seed, first wrong event.
+# provenance.from_trace stays None for claims that have no single failing trial yet.
+PUBLIC_TRACE: dict[str, dict[str, Any]] = {
+    "C-001": {"shape": "sibling_refund", "claim_id": "C-001", "seed": 11, "event": 4},
+    "C-002": {"shape": "seeded_regression", "claim_id": "C-002", "seed": 11, "event": 3},
+    "C-005": {"shape": "fixed", "claim_id": "C-005", "seed": 11, "event": 2},
+    "C-006": {"shape": "stale_clause", "claim_id": "C-006", "seed": 11, "event": 3},
+    "C-007": {"shape": "seeded_regression", "claim_id": "C-007", "seed": 11, "event": 5},
+    "C-010": {"shape": "leaky_trace", "claim_id": "C-010", "seed": 11, "event": 1},
+    "C-012": {"shape": "sibling_refund", "claim_id": "C-012", "seed": 11, "event": 4},
+    "C-014": {"shape": "pre_deducted", "claim_id": "C-014", "seed": 11, "event": 5},
+}
+
+
+def failure_modes_for(claim: dict[str, Any]) -> list[str]:
+    """Tags for one claim. Public claims come from the table above; any other claim (e.g. the
+    single-claim fixture used by the CLI tests) falls back to what its label implies."""
+    explicit = PUBLIC_FM.get(str(claim.get("claim_id") or ""))
+    if explicit:
+        return list(explicit)
+    expected = claim.get("expected") or {}
+    tags = []
+    if expected.get("status") == "escalated":
+        tags.append("FM-09")
+    elif expected.get("status") == "denied":
+        tags.append("FM-02")
+    if (expected.get("refund_vnd") or 0) > 0:
+        tags.append("FM-04")
+    return tags or ["FM-08"]
+
 
 def load_jsonl(path: Path) -> list[dict[str, Any]]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
@@ -46,10 +96,10 @@ def build(source: Path = SOURCE) -> tuple[int, int]:
         items.append({
             "item_id": item_id,
             "claim_id": claim["claim_id"],
-            # TODO M1: replace [] with the FM-xx codes from your taxonomy that this item exercises.
-            "failure_modes": [],
+            # M1: FM-xx codes from docs/failure_taxonomy.md (see PUBLIC_FM above).
+            "failure_modes": failure_modes_for(claim),
             "provenance": {"source": "lab8_public", "matrix_id": claim.get("matrix_id"),
-                           "from_trace": None, "generator": None,
+                           "from_trace": PUBLIC_TRACE.get(claim["claim_id"]), "generator": None,
                            "label_by": "lab8_matrix", "checked_by": None},
             "split": "regression",
             "eval_set_version": VERSION,
