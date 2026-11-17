@@ -44,8 +44,37 @@ def slice_check(pr: dict, base: dict, spec: dict) -> tuple[list[str], list[str]]
       - fail if below "min", or if no_significant_drop and the paired CI over the slice's items
         lies entirely below 0
     Return (blocked ids like "slice:money_movement/pass_rate", report lines)."""
-    # TODO M5
-    return [], []
+    blocked, lines = [], []
+    bs = spec.get("bootstrap", {})
+    for s in spec.get("slices") or []:
+        name, metric = s["name"], s["metric"]
+        sid = f"slice:{name}/{metric}"
+        got = per_item(pr, metric, slice_name=name)
+        if not got:
+            verdict, note, value = "missing", "no items in this slice", None
+        else:
+            value = sum(got.values()) / len(got)
+            verdict, note = "ok", ""
+            if "min" in s and value < s["min"]:
+                verdict = "fail"
+            if s.get("no_significant_drop"):
+                other = per_item(base, metric, slice_name=name)
+                keys = sorted(set(got) & set(other))
+                if keys:
+                    d, lo, hi = stats.paired_bootstrap(
+                        [got[k] for k in keys], [other[k] for k in keys],
+                        n_resamples=bs.get("n_resamples", 1000), rng=bs.get("rng", 2027))
+                    note = f"Δ {d:+.3f} CI [{lo:+.3f}, {hi:+.3f}]"
+                    if hi < 0:
+                        verdict = "fail"
+        if verdict != "ok" and s.get("blocking"):
+            blocked.append(sid)
+        label = {"ok": "ok", "missing": "MISSING"}.get(verdict, "BLOCK" if s.get("blocking") else "warn")
+        shown = "—" if value is None else f"{value:.4f}"
+        lines.append(f"  {sid:<34} n={len(got):<3} mean={shown:<7} "
+                     f"{json.dumps({k: v for k, v in s.items() if k in ('min', 'no_significant_drop')}):<34} "
+                     f"{note:<24} {label}")
+    return blocked, lines
 
 
 def check(pr: dict, base: dict, spec: dict, base_spec: dict | None = None) -> tuple[list[str], list[str]]:
