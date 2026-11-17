@@ -14,7 +14,7 @@ Lệnh in ra ba phần: các event trong trace (`reply`, `decision`, `model_over
 
 | Trường | Nội dung |
 |---|---|
-| Trial | `seeded_regression C-002@11`, run ID `R-seeded_regression-C-002-s11` trong `reports/eval_seeded_regression.json` (run `E-seeded_regression-20261117-0d16`) |
+| Trial | `seeded_regression C-002@11`, run ID `R-seeded_regression-C-002-s11` trong `reports/eval_seeded_regression.json` (run `E-seeded_regression-20261117-d454`) |
 | Triệu chứng | Grader Lab 8 fail `status resolved != denied`; reply nói "Dạ, LogiX đã hoàn 20.000đ cho đơn O-202", ledger ghi `refund_vnd=20000, refund_count=1`, nhãn là `0/0` + `denied`. |
 | Bước sai đầu tiên | Event **3** `model_override {"delay_days": 5}` — ticket nói 5 ngày, DB ghi 2 ngày. |
 | Vì sao là bước *đầu tiên* | Event 1 `handoff` có `facts={}` và allowlist đọc đúng; event 2 `investigator` trả `lookup_order` với `delay_days: 2` khớp DB — cả hai chưa sai. Event 3 mới thay fact DB bằng số trong ticket; event 4 `quote` ra 20.000đ `entitled` là hệ quả (2 ngày < ngưỡng 3 nên đáng lẽ phải `no_entitlement`). |

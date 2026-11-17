@@ -2,8 +2,8 @@
 
 Card này đi kèm mỗi báo cáo và được dùng lại ở Day 10.
 
-- **Run ID / eval set SHA:** `E-swarm-20261117-0d16` / `0d161edddbdb`
-- **Phiên bản:** code `cf9ec50` (baseline M4) · eval set v1 (sha `0d161edddbdb`) · metric_spec `1.0` · grader `lab9.graders` (commit `cf9ec50`) · seeds 11/22/33/44/55
+- **Run ID / eval set SHA:** `E-swarm-20261117-d454` / `d45498e5d5cd`
+- **Phiên bản:** code `cf9ec50` (baseline M4) · eval set v1 (sha `d45498e5d5cd`) · metric_spec `1.0` · grader `lab9.graders` (commit `cf9ec50`) · seeds 11/22/33/44/55
 - **Eval set:** v1, 14 item × 5 seed, nguồn `lab8_public`, nhãn tách riêng trong `labels_v1.json`; 14 item phủ 9 mã FM (`docs/failure_taxonomy.md`), 8 item có `provenance.from_trace`.
 - **Metric & ngưỡng:** (trích `config/metric_spec.yaml`)
 
