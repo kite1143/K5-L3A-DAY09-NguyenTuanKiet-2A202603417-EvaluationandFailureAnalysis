@@ -33,3 +33,31 @@ Card này đi kèm mỗi báo cáo và được dùng lại ở Day 10.
 - **Phạm vi pilot:** claim hoàn phí ship / bồi thường hư hỏng cho **một** đơn của principal sở hữu đơn, có approval hợp lệ; trần theo đơn; tiền tính bằng code (`lab8.compensation`). Ngoài phạm vi: nhiều đơn/hoàn gộp, tranh chấp pháp lý, hoàn một phần tự động ngoài policy.
 - **Giới hạn / bằng chứng còn thiếu:** MockLLM, 14 item × 5 seed, judge replay trên CSV công khai; không đo trên người dùng thật. Với 5 seed, bug chỉ xuất hiện 1/3 seed (`rare`) không phát hiện ổn định — CI rộng nên gate chỉ bắt hồi quy lớn; không hạ ngưỡng để "bắt" nó.
 - **Khi nào tăng eval-set version:** thêm item từ trace case mới, thêm FM/cơ chế tấn công, hoặc đổi nhãn (như H-081) → tăng `eval_set_version`, chạy lại baseline và cập nhật card. Đổi ngưỡng/metric → tăng `metric_spec_version` và ghi lý do ở `docs/PRD_v1.1.md` mục 7.
+
+## v2 — Advanced / Expert
+
+- **Run ID / eval set SHA:** `E-swarm-20261117-236a` / `236a47edf2c8` · eval set v2 = 28 item (14 public + 14 adversarial) × 5 seed · metric_spec `2.0`
+- **Baseline v2:** pass_rate 0.9786 · pass_hat_5 0.8929 · refund_amount_correct 0.9786 · reply_matches_ledger 1.0 · safety 0/0.
+  Slice: `denial` 0.9455, `money_movement` 1.0000, `adversarial` 0.9714.
+
+### Ngưỡng lấy từ A/A
+
+`python -m lab9.mutation --spec config/metric_spec_v2.yaml --aa 66,77,88,99,110`: cả 11 metric cho **Δ = 0.0000** giữa bộ seed 11–55 và 66–110 (MockLLM tất định). Sàn `pass_hat_5 = 0.80` cách baseline 0.0929, tức nằm ngoài dải nhiễu đo được. Với LLM thật dải nhiễu > 0: phải đo A/A lại trên model thật và đặt sàn dưới đầu dưới của dải, nếu không gate sẽ chặn PR trung thực một cách ngẫu nhiên. Với 5 seed, `pass_hat_5` là ước lượng thô (bước nhảy 1/28 ≈ 0.036).
+
+### Slice bắt lỗi gì
+
+| Slice | Bắt được | Bằng chứng |
+|---|---|---|
+| `money_movement` | `slice_regression` | mean 0.85 < 0.90, Δ −0.150 CI [−0.300, +0.000]; trong khi `pass_rate` toàn cục 0.9357 ≥ 0.85 và CI chạm 0 → chỉ slice chặn |
+| `adversarial` | 14 claim của pack (prompt injection, stale policy, cross-principal) | baseline 0.9714 |
+| `denial` | các claim phải bị từ chối / escalation | baseline 0.9455 (E-002, E-101, E-102 fail ở seed 55) |
+
+### Trap + mutation
+
+- `python -m lab9.traps ...` → **4/4 blocked**: `evaluator_errors_as_nan`, `dropped_failing_rows`, `cherry_picked_seeds`, `loosened_spec` (exit 0 = không trap nào lọt).
+- `python -m lab9.mutation --spec config/metric_spec_v2.yaml --baseline reports/baseline_v2.json` → **3/3 regression bị chặn, 0 báo nhầm**: `fixed` và `honest_refactor` merge; `seeded_regression`, `slice_regression`, `flaky_regression` block (`flaky` bị `pass_hat_5` 0.5714 < 0.80).
+- `pytest -m student -k advanced` → 12 passed.
+
+### Giới hạn cỡ mẫu
+
+Bug chỉ xuất hiện 1/3 seed (`rare`) không phát hiện ổn định với 5 seed; `pass_hat_5` chỉ thấy bug lặp lại trong ≥2 seed. Không hạ ngưỡng để "bắt" nó — ghi nhận là giới hạn cỡ mẫu và tăng số seed ở v3 nếu cần.
