@@ -3,3 +3,25 @@ __pycache__/
 src/reports/
 src/traces/
 *.sqlite
+
+# Secrets (skeleton-lab, carried over from Lab 8)
+.env
+.env.*
+!.env.example
+
+# Python / OS
+.venv/
+*.py[cod]
+.pytest_cache/
+pytest-of-*/
+.DS_Store
+
+# Lab 8 runtime output
+*.sqlite-*
+traces/
+student_drop/
+src/reports/hidden_grade.json
+src/reports/bonus_hidden.json
+
+# Instructor-only hidden pack. Never push it to this repo.
+src/eval/instructor/
